@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(rm:*)",
+      "Bash(grep:*)",
+      "Bash(git branch:*)",
+      "Bash(git merge:*)"
+    ],
+    "defaultMode": "plan"
+  },
+  "enabledPlugins": {
+    "feature-dev@claude-plugins-official": true
+  },
+  "language": "Korean",
+  "alwaysThinkingEnabled": true
+}

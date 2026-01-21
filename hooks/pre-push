@@ -1,0 +1,137 @@
+#!/bin/bash
+
+# Pre-push 훅
+# 푸시 전 빌드 및 테스트를 수행합니다.
+
+set -e
+
+echo "🚀 Pre-push 검사 시작..."
+
+# 현재 브랜치
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+echo "📌 현재 브랜치: $CURRENT_BRANCH"
+
+# 프로젝트 타입 감지
+detect_project_type() {
+    if [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
+        echo "spring-boot"
+    elif [ -f "requirements.txt" ] || [ -f "pyproject.toml" ]; then
+        echo "fastapi"
+    elif [ -f "package.json" ]; then
+        if grep -q "next" package.json 2>/dev/null; then
+            echo "nextjs"
+        else
+            echo "node"
+        fi
+    else
+        echo "unknown"
+    fi
+}
+
+PROJECT_TYPE=$(detect_project_type)
+echo "📦 프로젝트 타입: $PROJECT_TYPE"
+
+# 보호된 브랜치 확인
+check_protected_branch() {
+    PROTECTED_BRANCHES=("main" "master" "production")
+
+    for branch in "${PROTECTED_BRANCHES[@]}"; do
+        if [ "$CURRENT_BRANCH" == "$branch" ]; then
+            echo "⚠️  경고: 보호된 브랜치($branch)에 직접 푸시하려고 합니다."
+            echo "   PR을 통해 머지하는 것을 권장합니다."
+            read -p "   계속하시겠습니까? (y/N) " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                echo "❌ 푸시가 취소되었습니다."
+                exit 1
+            fi
+        fi
+    done
+}
+
+# Spring Boot 검사
+run_spring_boot_checks() {
+    echo "☕ Spring Boot 빌드 및 테스트..."
+
+    # 빌드
+    echo "   📦 빌드 중..."
+    if ./gradlew build -x test --quiet; then
+        echo "   ✓ 빌드 성공"
+    else
+        echo "   ✗ 빌드 실패"
+        exit 1
+    fi
+
+    # 테스트 (main/master 브랜치로 푸시할 때만)
+    if [[ "$CURRENT_BRANCH" == "main" || "$CURRENT_BRANCH" == "master" || "$CURRENT_BRANCH" == "dev" ]]; then
+        echo "   🧪 테스트 실행 중..."
+        if ./gradlew test --quiet; then
+            echo "   ✓ 테스트 통과"
+        else
+            echo "   ✗ 테스트 실패"
+            exit 1
+        fi
+    fi
+}
+
+# FastAPI 검사
+run_fastapi_checks() {
+    echo "🐍 FastAPI 테스트..."
+
+    # pytest 실행
+    if command -v pytest &> /dev/null; then
+        echo "   🧪 테스트 실행 중..."
+        if pytest --quiet 2>/dev/null; then
+            echo "   ✓ 테스트 통과"
+        else
+            echo "   ✗ 테스트 실패"
+            exit 1
+        fi
+    else
+        echo "   ⚠️  pytest가 설치되어 있지 않습니다."
+    fi
+}
+
+# Next.js 검사
+run_nextjs_checks() {
+    echo "⚛️  Next.js 빌드..."
+
+    # 빌드 검사
+    echo "   📦 빌드 중..."
+    if npm run build --quiet 2>/dev/null; then
+        echo "   ✓ 빌드 성공"
+    else
+        echo "   ✗ 빌드 실패"
+        exit 1
+    fi
+
+    # 테스트 (test 스크립트가 있는 경우)
+    if grep -q '"test"' package.json; then
+        echo "   🧪 테스트 실행 중..."
+        if npm test --quiet 2>/dev/null; then
+            echo "   ✓ 테스트 통과"
+        fi
+    fi
+}
+
+# 보호된 브랜치 확인
+check_protected_branch
+
+# 프로젝트 타입별 검사 실행
+case $PROJECT_TYPE in
+    spring-boot)
+        run_spring_boot_checks
+        ;;
+    fastapi)
+        run_fastapi_checks
+        ;;
+    nextjs|node)
+        run_nextjs_checks
+        ;;
+    *)
+        echo "⚠️  알 수 없는 프로젝트 타입, 검사 건너뜀"
+        ;;
+esac
+
+echo ""
+echo "✅ Pre-push 검사 완료! 푸시를 진행합니다."
