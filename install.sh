@@ -31,12 +31,22 @@ curl -fsSL "$REPO_URL/global/settings.json" -o "$CLAUDE_DIR/settings.json"
 echo "📥 커스텀 명령어 다운로드 중..."
 curl -fsSL "$REPO_URL/global/commands/clear.md" -o "$CLAUDE_DIR/commands/clear.md" 2>/dev/null || true
 
+# 훅 스크립트 다운로드
+echo "📥 Claude Code 훅 다운로드 중..."
+mkdir -p "$CLAUDE_DIR/hooks"
+curl -fsSL "$REPO_URL/hooks/pre-commit-hook.sh" -o "$CLAUDE_DIR/hooks/pre-commit-hook.sh"
+curl -fsSL "$REPO_URL/hooks/pre-push-hook.sh" -o "$CLAUDE_DIR/hooks/pre-push-hook.sh"
+curl -fsSL "$REPO_URL/hooks/pre-compact-hook.sh" -o "$CLAUDE_DIR/hooks/pre-compact-hook.sh"
+curl -fsSL "$REPO_URL/hooks/user-prompt-submit-hook.sh" -o "$CLAUDE_DIR/hooks/user-prompt-submit-hook.sh"
+chmod +x "$CLAUDE_DIR/hooks/"*.sh
+
 echo ""
 echo "✅ 설치 완료!"
 echo ""
 echo "📁 설치된 파일:"
 echo "   - $CLAUDE_DIR/settings.json"
 echo "   - $CLAUDE_DIR/commands/"
+echo "   - $CLAUDE_DIR/hooks/"
 echo ""
 echo "💡 프로젝트 템플릿 적용:"
 echo "   curl -fsSL $REPO_URL/scripts/init-project.sh | bash -s spring-boot"

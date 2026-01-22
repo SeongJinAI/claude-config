@@ -47,11 +47,11 @@ claude-dotfiles/
 │       ├── CLAUDE.md
 │       └── .claude/
 │
-├── hooks/                        # Git 훅
-│   ├── pre-commit                # 커밋 전 검사
-│   ├── pre-push                  # 푸시 전 빌드/테스트
-│   ├── commit-msg                # 커밋 메시지 검사
-│   └── install-hooks.sh          # 훅 설치 스크립트
+├── hooks/                        # Claude Code 훅
+│   ├── pre-commit-hook.sh        # git commit 실행 전 검사
+│   ├── pre-push-hook.sh          # git push 실행 전 검사
+│   ├── pre-compact-hook.sh       # compact 실행 전 HANDOFF.md 알림
+│   └── user-prompt-submit-hook.sh # /clear 명령 시 HANDOFF.md 알림
 │
 └── scripts/
     ├── init-project.sh           # 프로젝트 초기화
@@ -96,31 +96,67 @@ claude-dotfiles/
 1. `global/commands/[명령어].md` 파일 생성
 2. 명령어 프롬프트 작성
 
-## Git 훅 설치
+## Claude Code 훅
 
-프로젝트에 Git 훅 설치:
+Claude Code에서 특정 이벤트 발생 시 자동으로 실행되는 스크립트입니다.
+
+### 훅 설치
+
+훅은 `~/.claude/hooks/` 디렉토리에 복사하고, `settings.json`에 등록해야 합니다:
 
 ```bash
-# 현재 프로젝트에 설치
-./hooks/install-hooks.sh
+# 훅 스크립트 복사
+cp hooks/*.sh ~/.claude/hooks/
+chmod +x ~/.claude/hooks/*.sh
 
-# 특정 프로젝트에 설치
-./hooks/install-hooks.sh /path/to/project
+# settings.json은 install.sh로 자동 설치됨
 ```
 
 ### 훅 종류
 
-| 훅 | 실행 시점 | 검사 내용 |
-|----|----------|----------|
-| `pre-commit` | 커밋 전 | 컴파일, 린트, 민감 정보, 파일 크기 |
-| `pre-push` | 푸시 전 | 빌드, 테스트, 보호된 브랜치 확인 |
-| `commit-msg` | 커밋 메시지 작성 후 | 메시지 길이, 형식 검사 |
+| 훅 | 이벤트 | 트리거 | 기능 |
+|----|--------|--------|------|
+| `pre-commit-hook.sh` | `PreToolUse` | `git commit` 명령 | 주석, unused 코드, 컨벤션 검사 (경고) |
+| `pre-push-hook.sh` | `PreToolUse` | `git push` 명령 | Claude 서명 감지, 보호 브랜치 경고 |
+| `pre-compact-hook.sh` | `PreCompact` | `/compact` 또는 자동 compact | HANDOFF.md 업데이트 알림 |
+| `user-prompt-submit-hook.sh` | `UserPromptSubmit` | `/clear` 명령 | HANDOFF.md 업데이트 알림 |
 
-### 훅 건너뛰기
+### 훅 이벤트 설명
 
-```bash
-git commit --no-verify
-git push --no-verify
+- **PreToolUse**: Claude가 도구(Bash 등)를 실행하기 전
+- **PreCompact**: 수동(`/compact`) 또는 자동 compact 실행 전
+- **UserPromptSubmit**: 사용자가 프롬프트를 제출할 때
+
+### settings.json 훅 설정
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/pre-commit-hook.sh" },
+          { "type": "command", "command": "~/.claude/hooks/pre-push-hook.sh" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/user-prompt-submit-hook.sh" }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/pre-compact-hook.sh" }
+        ]
+      }
+    ]
+  }
+}
 ```
 
 ## 동기화
