@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Claude Code UserPromptSubmit Hook
-# /clear 명령 감지 시 HANDOFF.md 작성을 알립니다.
-# (/compact는 PreCompact 훅에서 처리)
+# /clear 또는 /compact 명령 감지 시 HANDOFF.md 작성을 Claude에게 지시합니다.
 #
 # 이벤트: UserPromptSubmit
 # 트리거: 사용자 프롬프트 제출 시
+# 출력: stdout → Claude 컨텍스트에 주입됨
 
 # stdin에서 JSON 읽기
 INPUT=$(cat)
@@ -34,45 +34,62 @@ get_cwd() {
 PROMPT=$(get_prompt)
 CWD=$(get_cwd)
 
-# /clear 명령인지 확인 (/compact는 PreCompact 훅에서 처리)
-if echo "$PROMPT" | grep -qE "^/clear"; then
-    echo "" >&2
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
-    echo "🧹 /clear 명령 감지 - HANDOFF.md 업데이트 알림" >&2
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
-    echo "" >&2
-
+# /clear 또는 /compact 명령인지 확인
+if echo "$PROMPT" | grep -qE "^/(clear|compact)"; then
     # 작업 디렉토리로 이동
-    cd "$CWD" 2>/dev/null
+    cd "$CWD" 2>/dev/null || cd ~
 
-    # HANDOFF.md 존재 여부 확인
-    if [ -f "HANDOFF.md" ]; then
-        # 마지막 수정 시간 확인
-        LAST_MODIFIED=$(stat -c %Y HANDOFF.md 2>/dev/null || stat -f %m HANDOFF.md 2>/dev/null || echo 0)
+    # 프로젝트 루트 찾기
+    PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "$CWD")
+    HANDOFF_PATH="$PROJECT_ROOT/HANDOFF.md"
+
+    # 명령어 종류 확인
+    if echo "$PROMPT" | grep -qE "^/compact"; then
+        COMMAND_TYPE="compact"
+    else
+        COMMAND_TYPE="clear"
+    fi
+
+    # HANDOFF.md 상태 확인
+    NEEDS_UPDATE="false"
+    if [ -f "$HANDOFF_PATH" ]; then
+        LAST_MODIFIED=$(stat -c %Y "$HANDOFF_PATH" 2>/dev/null || stat -f %m "$HANDOFF_PATH" 2>/dev/null || echo 0)
         CURRENT_TIME=$(date +%s)
         DIFF=$((CURRENT_TIME - LAST_MODIFIED))
 
-        # 10분(600초) 이내에 수정되었는지 확인
-        if [ "$DIFF" -lt 600 ]; then
-            echo "✅ HANDOFF.md가 최근에 업데이트되었습니다. (${DIFF}초 전)" >&2
-        else
-            echo "⚠️  HANDOFF.md가 오래되었습니다!" >&2
-            echo "" >&2
-            echo "💡 /compact 또는 /clear 전에 다음 내용을 포함하세요:" >&2
-            echo "   - 완료된 작업" >&2
-            echo "   - 다음 작업" >&2
-            echo "   - 주의사항" >&2
-            echo "   - 관련 파일" >&2
+        # 10분(600초) 이상 지났으면 업데이트 필요
+        if [ "$DIFF" -ge 600 ]; then
+            NEEDS_UPDATE="true"
+            MINUTES=$((DIFF / 60))
         fi
     else
-        echo "⚠️  HANDOFF.md가 존재하지 않습니다!" >&2
-        echo "" >&2
-        echo "💡 프로젝트 루트에 HANDOFF.md를 생성하세요." >&2
+        NEEDS_UPDATE="true"
+        MINUTES="N/A"
     fi
 
-    echo "" >&2
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
+    # stdout으로 출력 → Claude 컨텍스트에 주입됨
+    if [ "$NEEDS_UPDATE" = "true" ]; then
+        echo ""
+        echo "<user-prompt-submit-hook>"
+        echo "HANDOFF_UPDATE_REQUIRED: true"
+        echo "COMMAND: /$COMMAND_TYPE"
+        echo "HANDOFF_PATH: $HANDOFF_PATH"
+        if [ -f "$HANDOFF_PATH" ]; then
+            echo "LAST_MODIFIED: ${MINUTES}분 전"
+        else
+            echo "LAST_MODIFIED: 파일 없음"
+        fi
+        echo ""
+        echo "지시사항: /$COMMAND_TYPE 명령 실행 전에 HANDOFF.md를 업데이트하세요."
+        echo "포함할 내용:"
+        echo "  - 완료된 작업"
+        echo "  - 다음 작업 (남은 할일)"
+        echo "  - 주의사항"
+        echo "  - 관련 파일 경로"
+        echo "</user-prompt-submit-hook>"
+        echo ""
+    fi
 fi
 
-# 항상 통과 (알림만)
+# 항상 통과
 exit 0
