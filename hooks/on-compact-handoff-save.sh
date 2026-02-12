@@ -7,8 +7,13 @@
 # 트리거: 수동(/compact) 또는 자동 compact 발생 전
 # JSON 입력: session_id, transcript_path, trigger(manual|auto), custom_instructions
 
+# 디버그 로그 (hooks 실행 확인용)
+LOG_FILE="/tmp/claude-hooks.log"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] PreCompact hook 실행됨" >> "$LOG_FILE"
+
 # stdin에서 JSON 읽기
 INPUT=$(cat)
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] INPUT: $INPUT" >> "$LOG_FILE"
 
 # trigger 추출 (manual 또는 auto)
 get_trigger() {

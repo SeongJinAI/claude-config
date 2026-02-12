@@ -1,13 +1,56 @@
 #!/bin/bash
 
 # Claude Dotfiles 설치 스크립트
-# 사용법: curl -fsSL https://raw.githubusercontent.com/[YOUR_ID]/claude-dotfiles/main/install.sh | bash
+# 사용법:
+#   로컬 (심볼릭 링크): ./install.sh --link /path/to/claude-dotfiles
+#   원격 (다운로드):      curl -fsSL https://raw.githubusercontent.com/[YOUR_ID]/claude-dotfiles/main/install.sh | bash
 
 set -e
 
 REPO_URL="https://raw.githubusercontent.com/[YOUR_ID]/claude-dotfiles/main"
 CLAUDE_DIR="$HOME/.claude"
 
+# Hook 파일 목록
+HOOK_FILES=(
+    "on-commit-quality-check.sh"
+    "on-commit-doc-sync-check.sh"
+    "on-push-signature-check.sh"
+    "on-compact-handoff-save.sh"
+    "on-prompt-handoff-remind.sh"
+    "on-prompt-api-dev-guide.sh"
+)
+
+# ─── 심볼릭 링크 모드 (로컬 개발용) ───
+if [ "$1" = "--link" ]; then
+    DOTFILES_DIR="${2:-.}"
+    DOTFILES_DIR=$(cd "$DOTFILES_DIR" && pwd)
+
+    echo "🔗 심볼릭 링크 모드: $DOTFILES_DIR"
+
+    # hooks 디렉토리 심볼릭 링크
+    if [ -L "$CLAUDE_DIR/hooks" ]; then
+        echo "⚠️  기존 심볼릭 링크 제거..."
+        rm "$CLAUDE_DIR/hooks"
+    elif [ -d "$CLAUDE_DIR/hooks" ]; then
+        echo "⚠️  기존 hooks 디렉토리 백업 → hooks.backup/"
+        mv "$CLAUDE_DIR/hooks" "$CLAUDE_DIR/hooks.backup"
+    fi
+
+    ln -s "$DOTFILES_DIR/hooks" "$CLAUDE_DIR/hooks"
+    echo "✅ ~/.claude/hooks → $DOTFILES_DIR/hooks"
+    echo ""
+    echo "📁 연결된 Hook 스크립트:"
+    for f in "${HOOK_FILES[@]}"; do
+        if [ -f "$CLAUDE_DIR/hooks/$f" ]; then
+            echo "   ✓ $f"
+        else
+            echo "   ✗ $f (없음)"
+        fi
+    done
+    exit 0
+fi
+
+# ─── 다운로드 모드 (원격 설치용) ───
 echo "🚀 Claude Dotfiles 설치 시작..."
 
 # ~/.claude 디렉토리 생성
@@ -34,10 +77,9 @@ curl -fsSL "$REPO_URL/global/commands/clear.md" -o "$CLAUDE_DIR/commands/clear.m
 # 훅 스크립트 다운로드
 echo "📥 Claude Code 훅 다운로드 중..."
 mkdir -p "$CLAUDE_DIR/hooks"
-curl -fsSL "$REPO_URL/hooks/pre-commit-hook.sh" -o "$CLAUDE_DIR/hooks/pre-commit-hook.sh"
-curl -fsSL "$REPO_URL/hooks/pre-push-hook.sh" -o "$CLAUDE_DIR/hooks/pre-push-hook.sh"
-curl -fsSL "$REPO_URL/hooks/pre-compact-hook.sh" -o "$CLAUDE_DIR/hooks/pre-compact-hook.sh"
-curl -fsSL "$REPO_URL/hooks/user-prompt-submit-hook.sh" -o "$CLAUDE_DIR/hooks/user-prompt-submit-hook.sh"
+for f in "${HOOK_FILES[@]}"; do
+    curl -fsSL "$REPO_URL/hooks/$f" -o "$CLAUDE_DIR/hooks/$f" 2>/dev/null || echo "  ⚠️ $f 다운로드 실패 (스킵)"
+done
 chmod +x "$CLAUDE_DIR/hooks/"*.sh
 
 echo ""

@@ -7,49 +7,13 @@
       "Bash(git branch:*)",
       "Bash(git merge:*)"
     ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(git push --force origin main)",
+      "Bash(git push --force origin master)",
+      "Bash(git reset --hard)"
+    ],
     "defaultMode": "plan"
   },
-  "enabledPlugins": {
-    "feature-dev@claude-plugins-official": true
-  },
-  "language": "Korean",
-  "alwaysThinkingEnabled": true,
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/pre-commit-hook.sh"
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/pre-push-hook.sh"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/user-prompt-submit-hook.sh"
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/pre-compact-hook.sh"
-          }
-        ]
-      }
-    ]
-  },
-  "outputStyle": "Explanatory"
+  "language": "Korean"
 }

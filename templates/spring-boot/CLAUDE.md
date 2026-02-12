@@ -284,6 +284,35 @@ class UserControllerTest extends ApiTestSupport {
 - [ ] ERROR_MESSAGES.md 업데이트
 - [ ] 빌드 확인 (`./gradlew build`)
 
+## 스토리보드 기반 API 개발 워크플로
+
+> 기획문서(스토리보드 PDF)가 있는 프로젝트에서 사용합니다.
+> 상세 가이드: `claude-dotfiles/docs/templates/STORYBOARD_WORKFLOW.md`
+
+### 스토리보드 파일 위치
+
+| 항목 | 값 |
+|------|-----|
+| 위치 | `[기획문서 디렉토리 경로]` |
+| 파일명 규칙 | `[파일명 패턴]` |
+
+### 개발 파이프라인 (요약)
+
+1. 스토리보드 PDF 분석 → UI 요소를 API 엔드포인트로 매핑
+2. 기능명세서 작성
+3. 아키텍처 설명서 작성
+4. 코드 구현: Entity → Repository → DTO → Service → Controller → Test
+5. 사용자매뉴얼 작성
+6. 부수 문서 (ERROR_MESSAGES 등) 업데이트
+
+### 핵심 원칙
+
+- **스토리보드 ≠ 최종 사양** → DB/비즈니스 로직은 기존 코드 분석 병행
+- **유사 기능 참고 우선** → 기존 구현 패턴 분석 후 개발
+- **문서 → 코드 → 매뉴얼** 순서 준수
+
+---
+
 ## 인수인계 (HANDOFF.md)
 
 `/clear` 명령어 시 반드시 HANDOFF.md 업데이트
